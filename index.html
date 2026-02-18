@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LR Generation System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF Generation Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+
+      body,
+      html {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm;
+        height: 297mm;
+      }
+
+      #root {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      main {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        display: block !important;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+
+      .a5-copy {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+    }
+
+    /* Container for the preview on screen */
+    .a4-preview-container {
+      width: 210mm;
+      min-height: 297mm;
+      margin: auto;
+      background: white;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    /* Strict A5 Landscape Dimensions (Half A4) */
+    .a5-copy {
+      width: 210mm;
+      height: 148.5mm;
+      padding: 5mm;
+      position: relative;
+      overflow: hidden;
+      /* Prevent any bleed from affecting layout */
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media print {
+      .a4-preview-container {
+        box-shadow: none;
+        width: 210mm;
+        height: 297mm;
+      }
+    }
+  </style>
+
+</head>
+
+<body class="bg-slate-50 text-slate-900 font-sans">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
