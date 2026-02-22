@@ -45,16 +45,16 @@ const LRDetails: React.FC = () => {
     setShareStatus('downloading');
 
     try {
-      const html2pdf = (window as any).html2pdf;
-      if (!html2pdf) throw new Error("PDF Library not loaded");
+      // Dynamically import the local NPM module to bypass all CDN blockers/failures
+      const html2pdf = (await import('html2pdf.js')).default;
 
       // Precise A5 Landscape Configuration (210mm x 148.5mm)
       const opt = {
         margin: 0,
         filename: `${lr.lrNumber}_Customer_Copy.pdf`,
-        image: { type: 'jpeg', quality: 1.0 },
+        image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: {
-          scale: 4,
+          scale: 2,
           useCORS: true,
           logging: false,
           scrollY: 0,
@@ -66,7 +66,7 @@ const LRDetails: React.FC = () => {
         jsPDF: {
           unit: 'mm',
           format: 'a5',
-          orientation: 'landscape',
+          orientation: 'landscape' as const,
           compress: true
         }
       };

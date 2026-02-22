@@ -137,7 +137,7 @@ const PrintableLR: React.FC<PrintableLRProps> = ({ lr }) => {
         This is what html2pdf will capture for the Customer Copy PDF. 
         It is rendered at exactly 210mm x 148.5mm.
       */}
-      <div className="fixed -left-[10000px] -top-[10000px] pointer-events-none opacity-0">
+      <div className="fixed -left-[10000px] -top-[10000px] pointer-events-none">
         <div id="pdf-capture-target" className="w-[210mm] h-[148.5mm] overflow-hidden bg-white">
           <LRTemplate lr={lr} copyType="CUSTOMER COPY" />
         </div>
