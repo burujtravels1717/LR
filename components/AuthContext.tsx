@@ -10,6 +10,8 @@ const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes strictly per user request
 // Node: The 10-minute inactivity cross-tab wipe is handled 
 // pre-boot inside supabaseClient.ts to prevent token refresh deadlocks.
 
+let globalSessionPromise: any = null;
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -44,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lrService.setCurrentUser(null);
     setUser(null);
     lastUserIdRef.current = null;
+    globalSessionPromise = null;
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -128,7 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initialize = async () => {
       try {
         setLoading(true);
-        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!globalSessionPromise) {
+          globalSessionPromise = supabase.auth.getSession();
+        }
+        const { data: { session }, error } = await globalSessionPromise;
 
         if (error || !session?.user) {
           if (isMounted) clearSession();
