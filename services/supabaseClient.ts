@@ -13,6 +13,48 @@ const isValidUrl = (url: string) => {
   catch { return false; }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRE-BOOT INACTIVITY CHECK: Prevent Supabase Deadlock
+// ─────────────────────────────────────────────────────────────────────────────
+// Check if they've been inactive for > 10 mins BEFORE initializing Supabase.
+// If so, we nuke the token manually. This prevents `createClient` from attempting
+// to auto-refresh a stale token, which deadlocks the Supabase request queue.
+const ACTIVITY_STORAGE_KEY = 'kpm_last_activity';
+const TIMEOUT_MS = 10 * 60 * 1000;
+
+if (typeof window !== 'undefined') {
+  try {
+    const lastActivityStr = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+    if (lastActivityStr) {
+      const lastActivity = parseInt(lastActivityStr, 10);
+      if (Date.now() - lastActivity > TIMEOUT_MS) {
+        console.warn('Pre-boot: User inactive > 10 mins. Wiping Supabase token to prevent auto-refresh deadlock.');
+        localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+
+        // Supabase stores tokens as `sb-<project-ref>-auth-token`
+        if (supabaseUrl) {
+          try {
+            const urlObj = new URL(supabaseUrl);
+            const projectId = urlObj.hostname.split('.')[0];
+            const tokenKey = `sb-${projectId}-auth-token`;
+            localStorage.removeItem(tokenKey);
+          } catch (e) {
+            // Also just try wiping all localStorage items starting with 'sb-' to be safe
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                localStorage.removeItem(key);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore localStorage errors
+  }
+}
+
 const createSafeSupabaseClient = () => {
   if (!supabaseUrl || !supabaseAnonKey || !isValidUrl(supabaseUrl)) {
     console.error('Supabase credentials missing. LR Management System is running in "No-DB" mode. Set SUPABASE_URL and SUPABASE_ANON_KEY.');

@@ -11,17 +11,9 @@ let globalSessionPromise: Promise<User | null> | null = null;
 
 const checkSessionGlobally = async (): Promise<User | null> => {
   try {
-    // Check 10-minute cross-refresh inactivity rule BEFORE contacting Supabase
-    const lastActivityStr = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-    if (lastActivityStr) {
-      const lastActivity = parseInt(lastActivityStr, 10);
-      if (Date.now() - lastActivity > TIMEOUT_MS) {
-        console.warn('[Auth] User was inactive for > 10 mins before refresh. Forcing logout.');
-        localStorage.removeItem(ACTIVITY_STORAGE_KEY);
-        await supabase.auth.signOut().catch(() => { });
-        return null;
-      }
-    }
+    // Note: The 10-minute inactivity cross-tab wipe is now handled 
+    // pre-boot inside supabaseClient.ts to prevent token refresh deadlocks.
+
 
     // Explicitly fetch the existing session from Supabase
     const { data: { session }, error } = await supabase.auth.getSession();
