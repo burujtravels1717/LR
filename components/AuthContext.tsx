@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Fail-safe to ensure the app never stays on the loading screen forever
     const failSafeTimeout = setTimeout(() => {
-      if (isMounted && loading) {
+      if (isMounted) {
         console.warn('[Auth] Fail-safe executed: 5 seconds exceeded, forcing unauthenticated state.');
         clearSession();
         setLoading(false);
@@ -244,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (subscription) subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [clearSession, loading]);
+  }, [clearSession]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Public API

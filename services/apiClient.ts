@@ -3,6 +3,27 @@ import { supabase } from './supabaseClient';
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 500;
+const TIMEOUT_MS = 8000;
+
+/**
+ * Timeout wrapper to prevent eternal hangs if Supabase client queues stall
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number = TIMEOUT_MS): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`API request timed out after ${ms}ms`));
+    }, ms);
+    promise
+      .then(value => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(reason => {
+        clearTimeout(timer);
+        reject(reason);
+      });
+  });
+};
 
 /**
  * Retry wrapper for transient Supabase errors.
@@ -12,7 +33,7 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promis
   let lastError: any;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fn();
+      return await withTimeout(fn());
     } catch (err: any) {
       lastError = err;
       // Don't retry client errors (constraint violations, auth, etc.)
