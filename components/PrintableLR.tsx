@@ -151,7 +151,7 @@ const PrintableLR: React.FC<PrintableLRProps> = ({ lr }) => {
 
         {/* Tear Indicator (Screen only) */}
         <div className="no-print h-0 w-full border-t border-dashed border-[#94a3b8] relative z-50">
-          <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-[9px] font-black text-slate-300 uppercase tracking-[0.5em]">
+          <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-[9px] font-black text-[#cbd5e1] uppercase tracking-[0.5em]">
             FOLD / TEAR LINE
           </span>
         </div>
