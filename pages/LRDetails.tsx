@@ -52,13 +52,13 @@ const LRDetails: React.FC = () => {
         filename: `${lr.lrNumber}_Customer_Copy.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: {
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
           scrollY: 0,
           scrollX: 0,
-          width: element.offsetWidth,
-          height: element.offsetHeight,
+          width: 794,
+          height: 561,
           backgroundColor: '#ffffff'
         },
         jsPDF: {

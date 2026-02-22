@@ -25,15 +25,15 @@ const LRTemplate: React.FC<{ lr: LR; copyType: string }> = ({ lr, copyType }) =>
   const secondaryPhone = settings.secondaryPhone || '';
 
   return (
-    <div className="w-[210mm] h-[148.5mm] p-[8mm] flex flex-col bg-white box-border relative overflow-hidden border-b border-[#e2e8f0] last:border-b-0 print:border-none">
+    <div className="w-[794px] h-[561px] p-8 flex flex-col bg-white box-border relative overflow-hidden border-b border-[#e2e8f0] last:border-b-0 print:border-none">
       {/* Decorative Outer Border inside padding */}
-      <div className="absolute inset-[6mm] border-[1.5pt] border-[#0f172a] pointer-events-none"></div>
+      <div className="absolute inset-6 border-[1.5pt] border-[#0f172a] pointer-events-none"></div>
 
       <div className="relative z-10 flex flex-col h-full p-4">
         {/* Header Section */}
         <div className="flex justify-between items-start mb-3">
           <div>
-            <h1 className="text-2xl font-black text-[#0f172a] leading-none uppercase tracking-tighter">{businessName}</h1>
+            <h1 className="text-2xl font-black text-[#0f172a] leading-tight uppercase tracking-tighter">{businessName}</h1>
             <p className="text-[9px] font-bold text-[#64748b] uppercase mt-1 tracking-tight">
               Branch: {lr.branch} | GSTIN: {settings?.gstin || '33ABCDE1234F1Z5'}
             </p>
@@ -54,13 +54,13 @@ const LRTemplate: React.FC<{ lr: LR; copyType: string }> = ({ lr, copyType }) =>
         <div className="grid grid-cols-2 gap-4 border-t-[1pt] border-b-[1pt] border-[#cbd5e1] py-2.5 mb-3">
           <div className="border-r border-[#f1f5f9] pr-4">
             <h3 className="text-[8px] font-black uppercase text-[#2563eb] mb-1 tracking-widest">Consignor (From)</h3>
-            <p className="text-sm font-black text-[#0f172a] truncate">{lr.sender.name}</p>
+            <p className="text-sm font-black text-[#0f172a]">{lr.sender.name}</p>
             <p className="text-[10px] font-bold text-[#334155]">{lr.sender.mobile}</p>
             <p className="text-[9px] text-[#64748b] leading-tight mt-1 line-clamp-2 italic">{lr.sender.address || 'No Address Provided'}</p>
           </div>
           <div className="pl-4">
             <h3 className="text-[8px] font-black uppercase text-[#2563eb] mb-1 tracking-widest">Consignee (To)</h3>
-            <p className="text-sm font-black text-[#0f172a] truncate">{lr.receiver.name}</p>
+            <p className="text-sm font-black text-[#0f172a]">{lr.receiver.name}</p>
             <p className="text-[10px] font-bold text-[#334155]">{lr.receiver.mobile}</p>
             <p className="text-[9px] text-[#64748b] leading-tight mt-1 line-clamp-2 italic">{lr.receiver.address || 'No Address Provided'}</p>
           </div>
@@ -138,7 +138,7 @@ const PrintableLR: React.FC<PrintableLRProps> = ({ lr }) => {
         It is rendered at exactly 210mm x 148.5mm.
       */}
       <div className="fixed -left-[10000px] -top-[10000px] pointer-events-none">
-        <div id="pdf-capture-target" className="w-[210mm] h-[148.5mm] overflow-hidden bg-white">
+        <div id="pdf-capture-target" className="w-[794px] h-[561px] overflow-hidden bg-white">
           <LRTemplate lr={lr} copyType="CUSTOMER COPY" />
         </div>
       </div>
