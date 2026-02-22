@@ -23,7 +23,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Inactivity timeout state
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes strictly per user request
+  const ACTIVITY_STORAGE_KEY = 'kpm_last_activity';
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Internal helpers
@@ -46,8 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─────────────────────────────────────────────────────────────────────────────
 
   const logoutDueToInactivity = useCallback(async () => {
-    console.log('Session expired due to 30 minutes of inactivity. Logging out...');
+    console.log('Session expired due to 10 minutes of inactivity. Logging out...');
     try {
+      localStorage.removeItem(ACTIVITY_STORAGE_KEY);
       await supabase.auth.signOut();
     } catch (e) {
       console.error('Error during automatic sign out:', e);
@@ -63,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Only run timer if a user is logged in
     if (lastUserIdRef.current) {
+      localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
       inactivityTimerRef.current = setTimeout(logoutDueToInactivity, TIMEOUT_MS);
     }
   }, [logoutDueToInactivity, TIMEOUT_MS]);
@@ -117,6 +120,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       initPromiseRef.current = (async () => {
         try {
+          // Check 10-minute cross-refresh inactivity rule BEFORE contacting Supabase
+          const lastActivityStr = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+          if (lastActivityStr) {
+            const lastActivity = parseInt(lastActivityStr, 10);
+            if (Date.now() - lastActivity > TIMEOUT_MS) {
+              console.warn('[Auth] User was inactive for > 10 mins before refresh. Forcing logout.');
+              localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+              clearSession();
+              // Attempt background signout without blocking the UI rendering
+              supabase.auth.signOut().catch(() => { });
+              return;
+            }
+          }
+
           // 1. Explicitly fetch the existing session from Supabase on mount
           // By wrapping in a ref, we avoid the StrictMode double-invoke deadlock
           const { data: { session }, error } = await supabase.auth.getSession();
@@ -127,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Verify user still exists/is active in our db
             const profile = await authService.getUserProfile(session.user.id);
             if (profile) {
+              // Update localstorage so the timer survives the next refresh
+              localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
               applyUser(profile);
             } else {
               // Profile not found or inactive
@@ -225,18 +244,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const loggedInUser = await authService.login(email, password);
+    localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
     applyUser(loggedInUser);
     // Timer will be automatically started via the useEffect listening to `user`
   };
 
   const logout = async () => {
+    localStorage.removeItem(ACTIVITY_STORAGE_KEY);
     await authService.logout();
     clearSession();
   };
 
   const refreshSession = async () => {
     const profile = await authService.getSessionUser();
-    applyUser(profile); // Timer will restart via effect
+    if (profile) {
+      localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
+      applyUser(profile); // Timer will restart via effect
+    } else {
+      logout();
+    }
   };
 
   return (
