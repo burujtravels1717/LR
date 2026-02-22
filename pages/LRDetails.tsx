@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { lrService } from '../services/lrService';
 import { LR } from '../types';
 import PrintableLR from '../components/PrintableLR';
+import html2pdf from 'html2pdf.js';
 
 const LRDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,9 +46,6 @@ const LRDetails: React.FC = () => {
     setShareStatus('downloading');
 
     try {
-      // Dynamically import the local NPM module to bypass all CDN blockers/failures
-      const html2pdf = (await import('html2pdf.js')).default;
-
       // Precise A5 Landscape Configuration (210mm x 148.5mm)
       const opt = {
         margin: 0,
@@ -110,9 +108,9 @@ _Generated via ${businessName}_`;
         }
       }, 1000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Share error:", err);
-      alert("Error generating PDF. Please try again.");
+      alert(`Error generating PDF: ${err.message || err.toString()}`);
       setShareStatus('idle');
     }
   };
