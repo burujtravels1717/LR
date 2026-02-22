@@ -40,15 +40,7 @@ const Layout: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  if (!user || !settings) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  const businessName = settings.businessName || 'Entity System';
+  const businessName = settings?.businessName || 'Entity System';
   const logoInitial = businessName.charAt(0) || 'E';
 
   return (

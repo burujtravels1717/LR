@@ -42,17 +42,56 @@ export const authService = {
     await supabase.auth.signOut();
   },
 
+  /**
+   * Fetches the profile for a given authenticated Supabase user ID.
+   * Returns null if the profile cannot be found or the user is inactive.
+   */
+  getUserProfile: async (userId: string): Promise<User | null> => {
+    try {
+      // NOTE: No status filter here — session restoration trusts the Supabase
+      // token. Active status is validated at login() time only.
+      const { data: profile, error } = await supabase
+        .from(USER_DATA_KEY)
+        .select(LOGIN_COLUMNS)
+        .eq('id', userId)
+        .single();
+
+      if (error || !profile) return null;
+      return profile as User;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Returns the current user's profile by checking the live Supabase session.
+   * Explicitly validates token expiry and attempts a refresh if needed.
+   * Returns null on any failure — caller should treat this as "logged out".
+   */
   getSessionUser: async (): Promise<User | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return null;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session?.user) return null;
 
-    const { data: profile } = await supabase
-      .from(USER_DATA_KEY)
-      .select(LOGIN_COLUMNS)
-      .eq('id', session.user.id)
-      .single();
+      // Check if the access token has expired
+      const now = Math.floor(Date.now() / 1000);
+      const expires = session.expires_at ?? 0;
 
-    return profile as User | null;
+      if (expires > 0 && expires < now) {
+        // Token expired — attempt a refresh
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshed.session?.user) {
+          // Refresh failed — force sign out and return null
+          await supabase.auth.signOut();
+          return null;
+        }
+        return authService.getUserProfile(refreshed.session.user.id);
+      }
+
+      return authService.getUserProfile(session.user.id);
+    } catch {
+      return null;
+    }
   },
 
   requestPasswordReset: async (email: string): Promise<boolean> => {

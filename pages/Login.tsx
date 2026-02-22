@@ -18,12 +18,14 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     import('../services/entityService').then(({ entityService }) => {
-      entityService.getSettings().then(settings => {
-        if (settings.businessName) setBusinessName(settings.businessName);
-        if (settings.tagline) setTagline(settings.tagline);
-        setFetchingSettings(false);
-      });
-    });
+      entityService.getSettings()
+        .then(settings => {
+          if (settings.businessName) setBusinessName(settings.businessName);
+          if (settings.tagline) setTagline(settings.tagline);
+        })
+        .catch(() => { /* settings unavailable — show form without branding */ })
+        .finally(() => setFetchingSettings(false));
+    }).catch(() => setFetchingSettings(false));
   }, []);
 
   const from = (location.state as any)?.from?.pathname || '/list';

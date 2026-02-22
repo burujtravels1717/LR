@@ -37,15 +37,24 @@ const createSafeSupabaseClient = () => {
     return {
       from: stubQuery,
       auth: {
-        getSession: () => ({ data: { session: null }, error: null }),
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
         signInWithPassword: () => Promise.resolve({ data: { user: null }, error: new Error('Auth not configured') }),
         signOut: () => Promise.resolve({ error: null }),
+        refreshSession: () => Promise.resolve({ data: { session: null }, error: new Error('Auth not configured') }),
       },
     } as any;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,   // Automatically refresh access tokens before expiry
+      persistSession: true,     // Persist session in localStorage across tabs/refreshes
+      // detectSessionInUrl is intentionally omitted — this app uses password auth
+      // only. With HashRouter, the URL hash is used for routing (#/list) not for
+      // OAuth/magic-link tokens, so enabling that option would conflict.
+    },
+  });
 };
 
 export const supabase = createSafeSupabaseClient();
