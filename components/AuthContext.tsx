@@ -103,6 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, resetInactivityTimer]);
 
 
+  // Track the singleton initialization promise to avoid StrictMode double-invokes
+  const initPromiseRef = useRef<Promise<void> | null>(null);
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Auth state bootstrap: Explicitly use getSession first, then bind listener
   // ─────────────────────────────────────────────────────────────────────────────
@@ -110,28 +113,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let subscription: any;
     const isMounted = { current: true };
 
-    const initializeAuth = async () => {
-      try {
-        setLoading(true);
+    if (!initPromiseRef.current) {
+      setLoading(true);
+      initPromiseRef.current = (async () => {
+        try {
+          // 1. Explicitly fetch the existing session from Supabase on mount
+          // By wrapping in a ref, we avoid the StrictMode double-invoke deadlock
+          const { data: { session }, error } = await supabase.auth.getSession();
 
-        // Fallback safeguard: Never allow the app to hang on the loading screen for more than 5 seconds
-        const timeoutId = setTimeout(() => {
-          if (isMounted.current && loading) {
-            console.warn('[Auth] Session restoration timed out. Falling back to unauthenticated state.');
+          if (error || !session?.user) {
             clearSession();
-            setLoading(false);
-          }
-        }, 5000);
-
-        // 1. Explicitly fetch the existing session from Supabase on mount
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error || !session?.user) {
-          if (isMounted.current) clearSession();
-        } else {
-          // Verify user still exists/is active in our db
-          const profile = await authService.getUserProfile(session.user.id);
-          if (isMounted.current) {
+          } else {
+            // Verify user still exists/is active in our db
+            const profile = await authService.getUserProfile(session.user.id);
             if (profile) {
               applyUser(profile);
             } else {
@@ -140,19 +134,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await supabase.auth.signOut();
             }
           }
+        } catch (err) {
+          console.error('[Auth] Failed to initialize session:', err);
+          clearSession();
         }
-        clearTimeout(timeoutId);
-      } catch (err) {
-        console.error('[Auth] Failed to initialize session:', err);
-        if (isMounted.current) clearSession();
-      } finally {
-        // ALWAYS clear loading state as long as we haven't unmounted
-        if (isMounted.current) setLoading(false);
-      }
-    };
+      })();
+    }
 
-    // Run custom initialization
-    initializeAuth();
+    // Fallback safeguard: Never allow the app to hang on the loading screen for more than 5 seconds
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current) {
+        console.warn('[Auth] Session restoration timed out. Falling back to unauthenticated state.');
+        clearSession();
+        setLoading(false);
+      }
+    }, 5000);
+
+    initPromiseRef.current.finally(() => {
+      clearTimeout(timeoutId);
+      // ALWAYS clear loading state as long as we haven't unmounted
+      if (isMounted.current) setLoading(false);
+    });
 
     // 2. Set up the ongoing auth state listener for future changes (login, logout, refresh)
     const { data: authListener } = supabase.auth.onAuthStateChange(
