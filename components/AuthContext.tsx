@@ -4,6 +4,49 @@ import { authService } from '../services/authService';
 import { lrService } from '../services/lrService';
 import { supabase } from '../services/supabaseClient';
 
+const ACTIVITY_STORAGE_KEY = 'kpm_last_activity';
+const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes strictly per user request
+
+let globalSessionPromise: Promise<User | null> | null = null;
+
+const checkSessionGlobally = async (): Promise<User | null> => {
+  try {
+    // Check 10-minute cross-refresh inactivity rule BEFORE contacting Supabase
+    const lastActivityStr = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+    if (lastActivityStr) {
+      const lastActivity = parseInt(lastActivityStr, 10);
+      if (Date.now() - lastActivity > TIMEOUT_MS) {
+        console.warn('[Auth] User was inactive for > 10 mins before refresh. Forcing logout.');
+        localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+        await supabase.auth.signOut().catch(() => { });
+        return null;
+      }
+    }
+
+    // Explicitly fetch the existing session from Supabase
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session?.user) {
+      return null;
+    }
+
+    // Verify user still exists/is active in our db
+    const profile = await authService.getUserProfile(session.user.id);
+    if (profile) {
+      // Update localstorage so the timer survives the next refresh
+      localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
+      return profile;
+    } else {
+      // Profile not found or inactive
+      await supabase.auth.signOut();
+      return null;
+    }
+  } catch (err) {
+    console.error('[Auth] Failed to check session globally:', err);
+    return null;
+  }
+};
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -23,8 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Inactivity timeout state
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes strictly per user request
-  const ACTIVITY_STORAGE_KEY = 'kpm_last_activity';
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Internal helpers
@@ -106,79 +147,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, resetInactivityTimer]);
 
 
-  // Track the singleton initialization promise to avoid StrictMode double-invokes
-  const initPromiseRef = useRef<Promise<void> | null>(null);
-
   // ─────────────────────────────────────────────────────────────────────────────
-  // Auth state bootstrap: Explicitly use getSession first, then bind listener
+  // Auth state bootstrap: Guarantee perfect synchronization & fallback execution
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     let subscription: any;
-    const isMounted = { current: true };
+    let isMounted = true;
 
-    if (!initPromiseRef.current) {
-      setLoading(true);
-      initPromiseRef.current = (async () => {
-        try {
-          // Check 10-minute cross-refresh inactivity rule BEFORE contacting Supabase
-          const lastActivityStr = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-          if (lastActivityStr) {
-            const lastActivity = parseInt(lastActivityStr, 10);
-            if (Date.now() - lastActivity > TIMEOUT_MS) {
-              console.warn('[Auth] User was inactive for > 10 mins before refresh. Forcing logout.');
-              localStorage.removeItem(ACTIVITY_STORAGE_KEY);
-              clearSession();
-              // Attempt background signout without blocking the UI rendering
-              supabase.auth.signOut().catch(() => { });
-              return;
-            }
-          }
-
-          // 1. Explicitly fetch the existing session from Supabase on mount
-          // By wrapping in a ref, we avoid the StrictMode double-invoke deadlock
-          const { data: { session }, error } = await supabase.auth.getSession();
-
-          if (error || !session?.user) {
-            clearSession();
-          } else {
-            // Verify user still exists/is active in our db
-            const profile = await authService.getUserProfile(session.user.id);
-            if (profile) {
-              // Update localstorage so the timer survives the next refresh
-              localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
-              applyUser(profile);
-            } else {
-              // Profile not found or inactive
-              clearSession();
-              await supabase.auth.signOut();
-            }
-          }
-        } catch (err) {
-          console.error('[Auth] Failed to initialize session:', err);
-          clearSession();
-        }
-      })();
-    }
-
-    // Fallback safeguard: Never allow the app to hang on the loading screen for more than 5 seconds
-    const timeoutId = setTimeout(() => {
-      if (isMounted.current) {
-        console.warn('[Auth] Session restoration timed out. Falling back to unauthenticated state.');
+    // Fail-safe to ensure the app never stays on the loading screen forever
+    const failSafeTimeout = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('[Auth] Fail-safe executed: 5 seconds exceeded, forcing unauthenticated state.');
         clearSession();
         setLoading(false);
       }
     }, 5000);
 
-    initPromiseRef.current.finally(() => {
-      clearTimeout(timeoutId);
-      // ALWAYS clear loading state as long as we haven't unmounted
-      if (isMounted.current) setLoading(false);
-    });
+    const initialize = async () => {
+      try {
+        setLoading(true);
+        if (!globalSessionPromise) {
+          globalSessionPromise = checkSessionGlobally();
+        }
+
+        const profile = await globalSessionPromise;
+        if (!isMounted) return; // Prevent updating unmounted StrictMode component
+
+        if (profile) {
+          applyUser(profile);
+        } else {
+          clearSession();
+        }
+      } catch (err) {
+        console.error('[Auth] Critical initialization error:', err);
+        if (isMounted) clearSession();
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          clearTimeout(failSafeTimeout);
+        }
+      }
+    };
+
+    initialize();
 
     // 2. Set up the ongoing auth state listener for future changes (login, logout, refresh)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!isMounted.current) return;
+        if (!isMounted) return;
 
         console.debug('[Auth Event]', event, session?.user?.id ?? 'no-user');
 
@@ -232,11 +248,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('beforeunload', handleUnload);
 
     return () => {
-      isMounted.current = false;
+      isMounted = false;
       if (subscription) subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [clearSession]);
+  }, [clearSession, loading]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Public API
