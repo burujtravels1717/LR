@@ -8,9 +8,17 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const from = (location.state as any)?.from?.pathname || '/list';
+
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   const [businessName, setBusinessName] = useState('');
   const [tagline, setTagline] = useState('');
@@ -27,8 +35,6 @@ const Login: React.FC = () => {
         .finally(() => setFetchingSettings(false));
     }).catch(() => setFetchingSettings(false));
   }, []);
-
-  const from = (location.state as any)?.from?.pathname || '/list';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

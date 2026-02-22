@@ -114,6 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         setLoading(true);
 
+        // Fallback safeguard: Never allow the app to hang on the loading screen for more than 5 seconds
+        const timeoutId = setTimeout(() => {
+          if (isMounted.current && loading) {
+            console.warn('[Auth] Session restoration timed out. Falling back to unauthenticated state.');
+            clearSession();
+            setLoading(false);
+          }
+        }, 5000);
+
         // 1. Explicitly fetch the existing session from Supabase on mount
         const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -132,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         }
+        clearTimeout(timeoutId);
       } catch (err) {
         console.error('[Auth] Failed to initialize session:', err);
         if (isMounted.current) clearSession();
