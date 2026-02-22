@@ -50,9 +50,7 @@ const createSafeSupabaseClient = () => {
     auth: {
       autoRefreshToken: true,   // Automatically refresh access tokens before expiry
       persistSession: true,     // Persist session in localStorage across tabs/refreshes
-      // detectSessionInUrl is intentionally omitted — this app uses password auth
-      // only. With HashRouter, the URL hash is used for routing (#/list) not for
-      // OAuth/magic-link tokens, so enabling that option would conflict.
+      detectSessionInUrl: true, // Parse `#access_token=...` from password reset URLs 
     },
   });
 };
