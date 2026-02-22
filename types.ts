@@ -62,6 +62,7 @@ export interface User {
 
 export interface BusinessSettings {
   businessName: string;
+  logoUrl?: string;
   tagline: string;
   gstin: string;
   primaryName: string;

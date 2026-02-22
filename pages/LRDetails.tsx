@@ -16,7 +16,10 @@ const LRDetails: React.FC = () => {
   useEffect(() => {
     import('../services/entityService').then(({ entityService }) => {
       entityService.getSettings().then(settings => {
-        if (settings.businessName) setBusinessName(settings.businessName);
+        if (settings.businessName) {
+          setBusinessName(settings.businessName);
+          document.title = `${settings.businessName} - LR Document`;
+        }
       });
     });
 
@@ -135,7 +138,7 @@ _Generated via ${businessName}_`;
             <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{lr.lrNumber}</h1>
           </div>
           <p className="text-slate-400 font-bold text-[11px] uppercase tracking-widest ml-6">
-            Internal Management System • {lr.branch} Branch
+            {businessName} SYSTEM • {lr.branch} BRANCH
           </p>
         </div>
 

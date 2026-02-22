@@ -9,6 +9,7 @@ const BRANCHES_TABLE = 'branch_details';
 
 const DEFAULT_SETTINGS: BusinessSettings = {
   businessName: '',
+  logoUrl: '',
   tagline: '',
   gstin: '',
   primaryName: '',

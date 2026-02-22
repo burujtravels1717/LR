@@ -22,6 +22,7 @@ const Login: React.FC = () => {
 
   const [businessName, setBusinessName] = useState('');
   const [tagline, setTagline] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [fetchingSettings, setFetchingSettings] = useState(true);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const Login: React.FC = () => {
         .then(settings => {
           if (settings.businessName) setBusinessName(settings.businessName);
           if (settings.tagline) setTagline(settings.tagline);
+          if (settings.logoUrl) setLogoUrl(settings.logoUrl);
         })
         .catch(() => { /* settings unavailable — show form without branding */ })
         .finally(() => setFetchingSettings(false));
@@ -62,10 +64,14 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="max-w-md w-full">
-        <div className="text-center mb-10">
-          <div className="inline-flex w-16 h-16 bg-slate-900 rounded-2xl items-center justify-center text-white font-black text-3xl shadow-2xl mb-6">
-            {businessName.charAt(0)}
-          </div>
+        <div className="text-center mb-10 text-slate-900 border-b border-slate-100 pb-8 flex flex-col items-center">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain rounded-2xl shadow-2xl shadow-slate-900/10 mb-6" />
+          ) : (
+            <div className="inline-flex w-16 h-16 bg-slate-900 rounded-2xl items-center justify-center text-white font-black text-3xl shadow-2xl mb-6">
+              {businessName.charAt(0) || 'E'}
+            </div>
+          )}
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{businessName}</h1>
           <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-2">{tagline}</p>
         </div>
@@ -126,7 +132,7 @@ const Login: React.FC = () => {
         </div>
 
         <p className="text-center mt-10 text-[9px] font-black text-slate-300 uppercase tracking-[0.5em]">
-          &copy; {new Date().getFullYear()} KPM SYSTEMS
+          &copy; {new Date().getFullYear()} {businessName || 'SYSTEMS'}
         </p>
       </div>
     </div>

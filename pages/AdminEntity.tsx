@@ -138,6 +138,16 @@ const AdminEntity: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Business Logo URL (Optional)</label>
+                  <input
+                    type="url"
+                    value={settings.logoUrl || ''}
+                    onChange={e => setSettings({ ...settings, logoUrl: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-blue-500/10 outline-none"
+                    placeholder="https://example.com/logo.png"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GSTIN Number</label>
                   <input
                     type="text"

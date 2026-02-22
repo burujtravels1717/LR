@@ -1,7 +1,8 @@
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import { entityService } from './services/entityService';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './components/AuthContext';
 
@@ -30,6 +31,12 @@ const PageLoader = () => (
 );
 
 const App: React.FC = () => {
+  useEffect(() => {
+    entityService.getSettings().then(settings => {
+      document.title = settings.businessName ? `${settings.businessName} - LR System` : 'LR System';
+    }).catch(err => console.error("Could not fetch settings for title:", err));
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

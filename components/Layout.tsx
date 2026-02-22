@@ -48,12 +48,16 @@ const Layout: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 no-print shadow-sm">
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/list" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-colors">
-              {logoInitial}
-            </div>
+            {settings?.logoUrl ? (
+              <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded-lg shadow-lg shadow-slate-900/10" />
+            ) : (
+              <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/20 group-hover:bg-blue-600 transition-colors">
+                {logoInitial}
+              </div>
+            )}
             <div className="flex flex-col">
               <span className="font-black text-slate-900 tracking-tighter leading-none text-lg uppercase">{businessName}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{settings?.tagline || 'Management Portal'}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{settings?.tagline || 'LR BOOKING SYSTEM'}</span>
             </div>
           </Link>
 
@@ -152,11 +156,11 @@ const Layout: React.FC = () => {
         <div className="max-w-[1200px] mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="text-left">
-              <p className="text-slate-900 font-black text-sm uppercase tracking-tighter">{businessName} System</p>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Professional Internal Operations Dashboard</p>
+              <p className="text-slate-900 font-black text-sm uppercase tracking-tighter">{businessName} SYSTEM</p>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">PROFESSIONAL INTERNAL OPERATIONS DASHBOARD</p>
             </div>
             <div className="text-slate-300 text-[10px] font-black uppercase tracking-[0.3em]">
-              &copy; {new Date().getFullYear()} {businessName} Internal
+              &copy; {new Date().getFullYear()} {businessName}
             </div>
           </div>
         </div>
