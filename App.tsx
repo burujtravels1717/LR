@@ -57,7 +57,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* Redirects */}
-          <Route path="/" element={<Navigate to="/list" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
