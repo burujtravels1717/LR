@@ -107,7 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Auth state bootstrap: Explicitly use getSession first, then bind listener
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    let mounted = true;
+    let subscription: any;
+    const isMounted = { current: true };
 
     const initializeAuth = async () => {
       try {
@@ -117,11 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error || !session?.user) {
-          if (mounted) clearSession();
+          if (isMounted.current) clearSession();
         } else {
           // Verify user still exists/is active in our db
           const profile = await authService.getUserProfile(session.user.id);
-          if (mounted) {
+          if (isMounted.current) {
             if (profile) {
               applyUser(profile);
             } else {
@@ -133,9 +134,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.error('[Auth] Failed to initialize session:', err);
-        if (mounted) clearSession();
+        if (isMounted.current) clearSession();
       } finally {
-        if (mounted) setLoading(false);
+        // ALWAYS clear loading state as long as we haven't unmounted
+        if (isMounted.current) setLoading(false);
       }
     };
 
@@ -143,9 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     // 2. Set up the ongoing auth state listener for future changes (login, logout, refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
+        if (!isMounted.current) return;
 
         console.debug('[Auth Event]', event, session?.user?.id ?? 'no-user');
 
@@ -190,6 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    subscription = authListener.subscription;
+
     // Task: Clear sessionStorage on tab close
     const handleUnload = () => {
       sessionStorage.clear();
@@ -197,8 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('beforeunload', handleUnload);
 
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      isMounted.current = false;
+      if (subscription) subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleUnload);
     };
   }, [clearSession]);
