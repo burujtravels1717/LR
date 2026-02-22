@@ -7,37 +7,8 @@ import { supabase } from '../services/supabaseClient';
 const ACTIVITY_STORAGE_KEY = 'kpm_last_activity';
 const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes strictly per user request
 
-let globalSessionPromise: Promise<User | null> | null = null;
-
-const checkSessionGlobally = async (): Promise<User | null> => {
-  try {
-    // Note: The 10-minute inactivity cross-tab wipe is now handled 
-    // pre-boot inside supabaseClient.ts to prevent token refresh deadlocks.
-
-
-    // Explicitly fetch the existing session from Supabase
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error || !session?.user) {
-      return null;
-    }
-
-    // Verify user still exists/is active in our db
-    const profile = await authService.getUserProfile(session.user.id);
-    if (profile) {
-      // Update localstorage so the timer survives the next refresh
-      localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
-      return profile;
-    } else {
-      // Profile not found or inactive
-      await supabase.auth.signOut();
-      return null;
-    }
-  } catch (err) {
-    console.error('[Auth] Failed to check session globally:', err);
-    return null;
-  }
-};
+// Node: The 10-minute inactivity cross-tab wipe is handled 
+// pre-boot inside supabaseClient.ts to prevent token refresh deadlocks.
 
 interface AuthContextType {
   user: User | null;
@@ -140,15 +111,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Auth state bootstrap: Guarantee perfect synchronization & fallback execution
+  // Auth state bootstrap: Guarantee perfect synchronization & execution
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    let subscription: any;
     let isMounted = true;
 
     // Fail-safe to ensure the app never stays on the loading screen forever
     const failSafeTimeout = setTimeout(() => {
-      if (isMounted) {
+      if (isMounted && loading) {
         console.warn('[Auth] Fail-safe executed: 5 seconds exceeded, forcing unauthenticated state.');
         clearSession();
         setLoading(false);
@@ -158,17 +128,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initialize = async () => {
       try {
         setLoading(true);
-        if (!globalSessionPromise) {
-          globalSessionPromise = checkSessionGlobally();
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error || !session?.user) {
+          if (isMounted) clearSession();
+          return;
         }
 
-        const profile = await globalSessionPromise;
-        if (!isMounted) return; // Prevent updating unmounted StrictMode component
+        const profile = await authService.getUserProfile(session.user.id);
+        if (!isMounted) return;
 
         if (profile) {
+          localStorage.setItem(ACTIVITY_STORAGE_KEY, Date.now().toString());
           applyUser(profile);
         } else {
           clearSession();
+          await supabase.auth.signOut().catch(() => { });
         }
       } catch (err) {
         console.error('[Auth] Critical initialization error:', err);
@@ -183,55 +158,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initialize();
 
-    // 2. Set up the ongoing auth state listener for future changes (login, logout, refresh)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
+    // 2. Set up the ongoing auth state listener for future changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      console.debug('[Auth Event]', event, session?.user?.id ?? 'no-user');
 
-        console.debug('[Auth Event]', event, session?.user?.id ?? 'no-user');
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        clearSession();
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (!session?.user) {
+          clearSession();
+          return;
+        }
 
-        try {
-          switch (event) {
-            case 'SIGNED_IN': {
-              // After explicit login(), profile is already fetched in the login function.
-              // Just ensure our state matches if we didn't trigger this ourselves
-              if (session?.user && lastUserIdRef.current !== session.user.id) {
-                const profile = await authService.getUserProfile(session.user.id);
+        // CRITICAL FIX: Decouple profile fetch from Supabase auth event queue
+        // Awaiting supabase.from() inside this listener deadlocks Supabase on refresh!
+        if (lastUserIdRef.current !== session.user.id) {
+          setTimeout(() => {
+            if (!isMounted) return;
+            authService.getUserProfile(session.user.id).then(profile => {
+              if (isMounted) {
                 if (profile) {
                   applyUser(profile);
                 } else {
                   clearSession();
-                  setTimeout(() => supabase.auth.signOut(), 0);
+                  supabase.auth.signOut().catch(() => { });
                 }
               }
-              break;
-            }
-
-            case 'TOKEN_REFRESHED': {
-              // Access token silently refreshed
-              if (!session?.user) {
-                clearSession();
-              }
-              break;
-            }
-
-            case 'SIGNED_OUT':
-            case 'USER_DELETED': {
-              clearSession();
-              break;
-            }
-
-            default:
-              break;
-          }
-        } catch (err) {
-          console.error('[Auth] Unexpected error in onAuthStateChange handler:', err);
-          clearSession();
+            }).catch(() => {
+              if (isMounted) clearSession();
+            });
+          }, 0);
         }
       }
-    );
+    });
 
-    subscription = authListener.subscription;
+    const subscription = authListener.subscription;
 
     // Task: Clear sessionStorage on tab close
     const handleUnload = () => {
@@ -243,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
       if (subscription) subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleUnload);
+      clearTimeout(failSafeTimeout);
     };
   }, [clearSession]);
 
