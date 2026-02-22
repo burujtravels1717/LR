@@ -33,7 +33,7 @@ const LRTemplate: React.FC<{ lr: LR; copyType: string }> = ({ lr, copyType }) =>
         {/* Header Section */}
         <div className="flex justify-between items-start mb-3">
           <div>
-            <h1 className="text-2xl font-black text-[#0f172a] leading-tight uppercase tracking-tighter">{businessName}</h1>
+            <h1 className="text-2xl font-black text-[#0f172a] leading-tight uppercase tracking-tighter py-1">{businessName}</h1>
             <p className="text-[9px] font-bold text-[#64748b] uppercase mt-1 tracking-tight">
               Branch: {lr.branch} | GSTIN: {settings?.gstin || '33ABCDE1234F1Z5'}
             </p>
@@ -134,11 +134,9 @@ const PrintableLR: React.FC<PrintableLRProps> = ({ lr }) => {
     <div className="bg-[#e2e8f0] shadow-2xl p-4 print:p-0 print:bg-white print:shadow-none">
       {/* 
         OFF-SCREEN CLEAN CAPTURE TARGET 
-        This is what html2pdf will capture for the Customer Copy PDF. 
-        It is rendered at exactly 210mm x 148.5mm.
       */}
-      <div className="fixed -left-[10000px] -top-[10000px] pointer-events-none">
-        <div id="pdf-capture-target" className="w-[794px] h-[561px] overflow-hidden bg-white">
+      <div className="absolute top-0 left-0 -z-10 opacity-0 pointer-events-none">
+        <div id="pdf-capture-target" className="bg-white">
           <LRTemplate lr={lr} copyType="CUSTOMER COPY" />
         </div>
       </div>

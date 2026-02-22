@@ -52,13 +52,11 @@ const LRDetails: React.FC = () => {
         filename: `${lr.lrNumber}_Customer_Copy.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: {
-          scale: 3,
+          scale: 2,
           useCORS: true,
           logging: false,
           scrollY: 0,
           scrollX: 0,
-          width: 794,
-          height: 561,
           backgroundColor: '#ffffff'
         },
         jsPDF: {
@@ -68,6 +66,11 @@ const LRDetails: React.FC = () => {
           compress: true
         }
       };
+
+      // 0. Ensure fonts are ready
+      if ((document as any).fonts) {
+        await (document as any).fonts.ready;
+      }
 
       // 1. Generate and Download
       await html2pdf().set(opt).from(element).save();
